@@ -1,0 +1,4 @@
+res/
+utils/__pycache__/
+model/__pycache__/
+loaders/__pycache__/
