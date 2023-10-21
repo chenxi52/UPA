@@ -21,7 +21,7 @@ from utils.adjust_par import op_copy, cosine_warmup
 from utils.tools import print_args, image_train
 from utils.str2bool import str2bool
 from utils import loss as Loss
-from utils.utils_noise import pair_selection_v1, pair_selection
+from utils.utils_noise import pair_selection_v1
 import json
 from torch.cuda.amp import autocast
 
@@ -41,6 +41,7 @@ class Upa(object):
         self.loader, self.dsets = data_load(args)
         self.max_iters = len(self.loader['two_train']) * args.max_epoch
         self.scaler = torch.cuda.amp.GradScaler()
+        self.args = args
 
     def train_uns(self, epoch, adjust_learning_rate):
         for batchidx, (inputs, _, _, tar_idx) in enumerate(self.loader['two_train']):
@@ -51,7 +52,7 @@ class Upa(object):
 
             adjust_learning_rate(self.optimizer, (epoch - 1) * len(self.loader['two_train']) + batchidx + 1,
                                  self.max_iters,
-                                 warmup_iters=args.scheduler_warmup_epochs * len(self.loader['two_train']))
+                                 warmup_iters=self.args.scheduler_warmup_epochs * len(self.loader['two_train']))
             with autocast():
                 features = self.encoder(inputs)
                 outputs = self.netC(features)
@@ -59,10 +60,10 @@ class Upa(object):
 
                 softmax_out = nn.Softmax(dim=1)(outputs)  # (N,k)
                 entropy_loss = torch.mean(Loss.Entropy(softmax_out))
-                im_loss = entropy_loss * args.par_ent
+                im_loss = entropy_loss * self.args.par_ent
                 msoftmax = softmax_out.mean(dim=0)  # 降维（K，）
-                gentropy_loss = torch.sum(-msoftmax * torch.log(msoftmax + args.epsilon))
-                im_loss -= gentropy_loss * args.par_ent
+                gentropy_loss = torch.sum(-msoftmax * torch.log(msoftmax + self.args.epsilon))
+                im_loss -= gentropy_loss * self.args.par_ent
                 classifier_loss += im_loss
 
             self.scaler.scale(classifier_loss).backward()
@@ -86,11 +87,11 @@ class Upa(object):
             inputs = inputs.cuda()
             m_inputs = m_inputs.cuda()
             adjust_learning_rate(self.optimizer, (epoch - 1) * len(trainloader) + batchidx + 1, self.max_iters,
-                                 warmup_iters=args.scheduler_warmup_epochs * len(trainloader))
+                                 warmup_iters=self.args.scheduler_warmup_epochs * len(trainloader))
             with autocast():
                 outputs = self.netC(self.encoder(inputs))   
                 classifier_loss = torch.tensor(0.).cuda()
-                if args.par_su_cl > 0:
+                if self.args.par_su_cl > 0:
                     q = outputs.clone()
                     k = self.netC(self.encoder(m_inputs))
                     q = F.normalize(q, dim=-1)
@@ -104,15 +105,15 @@ class Upa(object):
                     # sel_mask = (maskSup_batch[:bsz].sum(1)) < 1
                     # print(f'sum of sel_mask for low-confident samples:{sel_mask.sum()}')
 
-                    loss_sup = args.par_su_cl * self.Supervised_ContrastiveLearning_loss(pairwise_comp_batch,
+                    loss_sup = self.args.par_su_cl * self.Supervised_ContrastiveLearning_loss(pairwise_comp_batch,
                                                                                         maskSup_batch, maskUnsup_batch,
                                                                                         logits_mask_batch, bsz)
                 else:
                     loss_sup = 0
 
                 classifier_loss += loss_sup
-                if args.par_noisy_cls > 0:
-                    if args.sel_cls:
+                if self.args.par_noisy_cls > 0:
+                    if self.args.sel_cls:
                         assert trainSelloader is not None
                         try:
                             img, labels, _ = next(train_sel_iter)
@@ -122,21 +123,21 @@ class Upa(object):
                         img = img.cuda()
                         labels = labels.cuda()
                         sel_output = self.netC(self.encoder(img))
-                        classifier_loss += nn.CrossEntropyLoss()(sel_output, labels) * args.par_noisy_cls
+                        classifier_loss += nn.CrossEntropyLoss()(sel_output, labels) * self.args.par_noisy_cls
                     else:
                         cls_loss = nn.CrossEntropyLoss()(outputs, pred)
-                        cls_loss *= args.par_noisy_cls
-                        if epoch == 1 and args.dset == "VISDA-C":
+                        cls_loss *= self.args.par_noisy_cls
+                        if epoch == 1 and self.args.dset == "VISDA-C":
                             cls_loss *= 0
                         classifier_loss += cls_loss
 
-                if args.par_noisy_ent > 0:
+                if self.args.par_noisy_ent > 0:
                     softmax_out = nn.Softmax(dim=1)(outputs)  # (N,k)
                     entropy_loss = torch.mean(Loss.Entropy(softmax_out))
-                    im_loss = entropy_loss * args.par_noisy_ent
+                    im_loss = entropy_loss * self.args.par_noisy_ent
                     msoftmax = softmax_out.mean(dim=0)  # 降维（K，）
-                    gentropy_loss = torch.sum(-msoftmax * torch.log(msoftmax + args.epsilon))
-                    im_loss -= gentropy_loss * args.par_noisy_ent
+                    gentropy_loss = torch.sum(-msoftmax * torch.log(msoftmax + self.args.epsilon))
+                    im_loss -= gentropy_loss * self.args.par_noisy_ent
                     classifier_loss += im_loss
             
             self.scaler.scale(classifier_loss).backward()
@@ -163,10 +164,10 @@ class Upa(object):
     def Supervised_ContrastiveLearning_loss(self, pairwise_comp, maskSup, maskUnsup, logits_mask, bsz):
         # maskUnsup是每个样本的一对正例
         # pairwise_comp:2N*2N,q,k合并
-        logits = torch.div(pairwise_comp, args.su_cl_t)
+        logits = torch.div(pairwise_comp, self.args.su_cl_t)
         exp_logits = torch.exp(logits) * logits_mask
 
-        if args.scheduler_warmup_epochs == 1:
+        if self.args.scheduler_warmup_epochs == 1:
             log_prob = logits - torch.log(exp_logits.sum(1, keepdim=True))
             ## Approximation for numerical stability taken from supervised contrastive learning
         else:
@@ -189,15 +190,15 @@ class Upa(object):
     def start_train(self):
         param_group = []
         for k, v in self.encoder.netF.named_parameters():
-            if args.lr_decay1 > 0:
+            if self.args.lr_decay1 > 0:
                 if v.requires_grad:
-                    param_group += [{'params': v, 'lr': args.lr * args.lr_decay1}]
+                    param_group += [{'params': v, 'lr': self.args.lr * self.args.lr_decay1}]
             else:
                 v.requires_grad = False
         for k, v in self.encoder.netB.named_parameters():
-            if args.lr_decay2 > 0:
+            if self.args.lr_decay2 > 0:
                 if v.requires_grad:
-                    param_group += [{'params': v, 'lr': args.lr * args.lr_decay2}]
+                    param_group += [{'params': v, 'lr': self.args.lr * self.args.lr_decay2}]
             else:
                 v.requires_grad = False
         for k, v in self.netC.named_parameters():
@@ -209,7 +210,7 @@ class Upa(object):
         return acc_final
 
     def forward(self):
-        for epoch in range(1, args.max_epoch + 1):
+        for epoch in range(1, self.args.max_epoch + 1):
             self.encoder.eval()
             self.netC.eval()
             mem_label, all_fea, initc, all_label, all_output = self.obtain_label(False)
@@ -218,19 +219,19 @@ class Upa(object):
             self.encoder.train()
             self.netC.train()
 
-            if epoch <= args.warmup_epochs:
+            if epoch <= self.args.warmup_epochs:
                 # only runned when dataset == visda-C
                 classifier_loss = self.train_uns(epoch, cosine_warmup)
 
-            elif epoch > args.warmup_epochs:
-                selected_examples, selected_pairs = pair_selection_v1(args.k_val,
+            elif epoch > self.args.warmup_epochs:
+                selected_examples, selected_pairs = pair_selection_v1(self.args.k_val,
                                                                    self.loader['test'],
-                                                                   mem_label, args.class_num,
-                                                                   args.cos_t,
-                                                                   args.knn_times,
+                                                                   mem_label, self.args.class_num,
+                                                                   self.args.cos_t,
+                                                                   self.args.knn_times,
                                                                    all_fea,
-                                                                   balance_class=args.balance_class,
-                                                                   sel_ratio=args.sel_ratio,
+                                                                   balance_class=self.args.balance_class,
+                                                                   sel_ratio=self.args.sel_ratio,
                                                                    epoch=epoch)
 
                 # calculate pseudo-label accuracy of selected_examples
@@ -242,9 +243,9 @@ class Upa(object):
                 # use the selected pseudo-labels to build a dataloader train_sel_loader to supervise training
                 self.encoder.train()
                 self.netC.train()
-                txt_tar = open(args.t_dset_path).readlines()
+                txt_tar = open(self.args.t_dset_path).readlines()
                 pseudo_dataset = Pseudo_dataset(txt_tar, mem_label.cpu().numpy(), transform=image_train())
-                train_sel_loader = DataLoader(pseudo_dataset, batch_size=args.batch_size, num_workers=args.worker,
+                train_sel_loader = DataLoader(pseudo_dataset, batch_size=self.args.batch_size, num_workers=self.args.worker,
                                               pin_memory=True,
                                               sampler=torch.utils.data.WeightedRandomSampler(selected_examples,
                                                                                              len(selected_examples)))
@@ -255,31 +256,31 @@ class Upa(object):
             # evaluate accuracy every epoch
             self.encoder.eval()
             self.netC.eval()
-            if args.dset == 'VISDA-C':
+            if self.args.dset == 'VISDA-C':
                 acc_s_te, acc_list = self.cal_acc(True)
-                log_str = f'Task: {args.name}, epoch:{epoch}/{args.max_epoch}; Accuracy = {acc_s_te:.2f};' \
+                log_str = f'Task: {self.args.name}, epoch:{epoch}/{self.args.max_epoch}; Accuracy = {acc_s_te:.2f};' \
                           f'Loss = {classifier_loss:.2f}; \n {acc_list}'
             else:
                 acc_s_te = self.cal_acc(False)
-                log_str = f'Task: {args.name}, epoch:{epoch}/{args.max_epoch}; Accuracy = {acc_s_te:.2f} ;' \
+                log_str = f'Task: {self.args.name}, epoch:{epoch}/{self.args.max_epoch}; Accuracy = {acc_s_te:.2f} ;' \
                           f'Loss = {classifier_loss:.2f} '
-            args.out_file.write(log_str + '\n')
-            args.out_file.flush()
+            self.args.out_file.write(log_str + '\n')
+            self.args.out_file.flush()
             print(log_str + '\n')
 
 
-        if args.issave:
-            args.save_dir = osp.join(args.output_dir, f'acc_{acc_s_te:.2f}_{args.savename}')
-            if not osp.exists(args.save_dir):
-                os.system('mkdir -p ' + args.save_dir)
-            if not osp.exists(args.save_dir):
-                os.mkdir(args.save_dir)
+        if self.args.issave:
+            self.args.save_dir = osp.join(self.args.output_dir, f'acc_{acc_s_te:.2f}_{self.args.savename}')
+            if not osp.exists(self.args.save_dir):
+                os.system('mkdir -p ' + self.args.save_dir)
+            if not osp.exists(self.args.save_dir):
+                os.mkdir(self.args.save_dir)
             torch.save(self.encoder.netF.state_dict(),
-                       osp.join(args.save_dir, "target_F.pt"))
+                       osp.join(self.args.save_dir, "target_F.pt"))
             torch.save(self.encoder.netB.state_dict(),
-                       osp.join(args.save_dir, "target_B.pt"))
+                       osp.join(self.args.save_dir, "target_B.pt"))
             torch.save(self.netC.state_dict(),
-                       osp.join(args.save_dir, "target_C.pt"))
+                       osp.join(self.args.save_dir, "target_C.pt"))
         return round(acc_s_te,1)
         
         
@@ -292,8 +293,8 @@ class Upa(object):
             sel_acc = (sel_real_labels == sel_mem_labels).sum().item() / selected_samples.sum().item()
         logstr = f'selection samples accuracy:{100 * sel_acc:.2f}%'
         print(logstr)
-        args.out_file.write(logstr+'\n')
-        args.out_file.flush()
+        self.args.out_file.write(logstr+'\n')
+        self.args.out_file.flush()
 
     def cal_acc(self, flag=False):
         start_test = True
@@ -351,7 +352,7 @@ class Upa(object):
         _, predict = torch.max(all_output, 1)
 
         accuracy = torch.sum(torch.squeeze(predict).float() == all_label).item() / float(all_label.size()[0])
-        if args.distance == 'cosine':
+        if self.args.distance == 'cosine':
             all_fea = torch.cat([all_fea, torch.ones(all_fea.size(0), 1)], 1)  # N*(f+1),这里加了一列全1的
             all_fea = (all_fea.t() / torch.norm(all_fea, p=2, dim=1)).t()  # n*(f+1)
             all_fea = all_fea.float().cpu().numpy()
@@ -364,7 +365,7 @@ class Upa(object):
         labelset = np.where(cls_count > 0)
         labelset = labelset[0]
 
-        dd = cdist(all_fea, initc[labelset], args.distance)  # cdist(N*f+1,k*f+1)-->N*k+1
+        dd = cdist(all_fea, initc[labelset], self.args.distance)  # cdist(N*f+1,k*f+1)-->N*k+1
         pred_label = dd.argmin(axis=1)
         pred_label = labelset[pred_label]
 
@@ -372,18 +373,18 @@ class Upa(object):
             aff = np.eye(K)[pred_label]  # N*K
             initc = aff.transpose().dot(all_fea)  # K*(f+1)
             initc = initc / (1e-8 + aff.sum(axis=0)[:, None])
-            dd = cdist(all_fea, initc[labelset], args.distance)
+            dd = cdist(all_fea, initc[labelset], self.args.distance)
             pred_label = dd.argmin(axis=1)
             pred_label = labelset[pred_label]  # (N,)
 
         min_dist = dd.min(axis=1)  # 样本距离自己的聚类中心的距离
         acc = np.sum(pred_label == all_label.float().numpy()) / len(all_fea)
-        log_str = f'Task:{args.name}   Accuracy = {accuracy * 100:.2f}% -> {acc * 100:.2f}%'
+        log_str = f'Task:{self.args.name}   Accuracy = {accuracy * 100:.2f}% -> {acc * 100:.2f}%'
         # accuracy:目前的模型预测成功率；
         # acc：pseudo label和true label相似度
 
-        args.out_file.write(log_str + '\n')
-        args.out_file.flush()
+        self.args.out_file.write(log_str + '\n')
+        self.args.out_file.flush()
         print(log_str + '\n')
 
         if return_dist:

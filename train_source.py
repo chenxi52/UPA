@@ -74,7 +74,6 @@ def data_load(args):
     # 读取list文件
     txt_src = open(args.s_dset_path).readlines()
     txt_test = open(args.test_dset_path).readlines()
-
     if not args.da == 'uda':
         label_map_s = {}
         for i in range(len(args.src_classes)):
@@ -113,13 +112,13 @@ def data_load(args):
         _, te_txt = torch.utils.data.random_split(txt_src, [tr_size, dsize - tr_size])
         tr_txt = txt_src
 
-    dsets["source_tr"] = ImageList(tr_txt, transform=image_train(norm_val=args.norm_val))
+    dsets["source_tr"] = ImageList(tr_txt, transform=image_train(norm_val=args.norm_val),append_root=args.append_root)
     dset_loaders["source_tr"] = DataLoader(dsets["source_tr"], batch_size=train_bs, shuffle=True,
                                            num_workers=args.worker, drop_last=False)
-    dsets["source_te"] = ImageList(te_txt, transform=image_test(norm_val=args.norm_val))
+    dsets["source_te"] = ImageList(te_txt, transform=image_test(norm_val=args.norm_val),append_root=args.append_root)
     dset_loaders["source_te"] = DataLoader(dsets["source_te"], batch_size=train_bs, shuffle=True,
                                            num_workers=args.worker, drop_last=False)
-    dsets["test"] = ImageList(txt_test, transform=image_test(norm_val=args.norm_val))
+    dsets["test"] = ImageList(txt_test, transform=image_test(norm_val=args.norm_val),append_root=args.append_root)
     dset_loaders["test"] = DataLoader(dsets["test"], batch_size=train_bs * 2, shuffle=False, num_workers=args.worker,
                                       drop_last=False)
     return dset_loaders
@@ -227,11 +226,9 @@ def train_source(args):
     netC.train()
 
     while iter_num < max_iter:
-        try:
-            inputs_source, labels_source = iter_source.next()
-        except:
-            iter_source = iter(dset_loaders["source_tr"])
-            inputs_source, labels_source = iter_source.next()
+
+        iter_source = iter(dset_loaders["source_tr"])
+        inputs_source, labels_source = iter_source.next()
 
         if inputs_source.size(0) == 1:
             continue
@@ -359,7 +356,8 @@ if __name__ == "__main__":
     parser.add_argument('--normalized', default=False, type=str2bool)
     parser.add_argument('--norm_val', type=str, default='imagenet', choices=['imagenet', 'norm'])
     args = parser.parse_args()
-
+    folder = '../DATASETS/'
+    args.append_root = None
     if args.dset == 'office-home':
         names = ['Art', 'Clipart', 'Product', 'RealWorld']
         args.class_num = 65
@@ -369,6 +367,8 @@ if __name__ == "__main__":
     if args.dset == 'VISDA-C':
         names = ['train', 'validation']
         args.class_num = 12
+        args.append_root = folder + 'VISDA-C/'
+
     if args.dset == 'office-caltech':
         names = ['amazon', 'caltech', 'dslr', 'webcam']
         args.class_num = 10
@@ -381,8 +381,7 @@ if __name__ == "__main__":
     random.seed(SEED)
     # torch.backends.cudnn.deterministic = True
 
-    folder = '../DATASETS/'
-
+    
     args.s_dset_path = folder + args.dset + '/' + names[args.s] + '_list.txt'
     args.test_dset_path = folder + args.dset + '/' + names[args.t] + '_list.txt'
 

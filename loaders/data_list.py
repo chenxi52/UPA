@@ -9,7 +9,7 @@ import cv2
 import torchvision
 
 
-def make_dataset(image_list, labels):
+def make_dataset(image_list, labels, append_root=None):
     if labels:
         len_ = len(image_list)
         images = [(image_list[i].strip(), labels[i, :]) for i in range(len_)]
@@ -17,7 +17,10 @@ def make_dataset(image_list, labels):
         if len(image_list[0].split()) > 2:
             images = [(val.split()[0], np.array([int(la) for la in val.split()[1:]])) for val in image_list]
         else:
-            images = [(val.split()[0], int(val.split()[1])) for val in image_list]
+            if append_root:
+                images = [(os.path.join(append_root, val.split()[0]), int(val.split()[1])) for val in image_list]
+            else:
+                images = [(val.split()[0], int(val.split()[1])) for val in image_list]
     return images
 
 
@@ -34,8 +37,8 @@ def l_loader(path):
 
 
 class ImageList(Dataset):
-    def __init__(self, image_list, labels=None, transform=None, target_transform=None, mode='RGB'):
-        imgs = make_dataset(image_list, labels)
+    def __init__(self, image_list, labels=None, transform=None, target_transform=None, mode='RGB',append_root=None):
+        imgs = make_dataset(image_list, labels,append_root)
         if len(imgs) == 0:
             raise (RuntimeError("Found 0 images in subfolders of: " + root + "\n"
                                                                              "Supported image extensions are: " + ",".join(

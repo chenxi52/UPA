@@ -315,7 +315,7 @@ def plot_with_anchor(
     point_colors = list(map(colors.get, y))
 
     class_num = kwargs.get('class_num', 0)
-    # ax.scatter(x[:, 0][-class_num:], x[:, 1][-class_num:], marker='+', c=point_colors[-class_num:], rasterized=True, **plot_params)
+    ax.scatter(x[:, 0][-class_num:], x[:, 1][-class_num:], marker='+', c=point_colors[-class_num:], rasterized=True, **plot_params)
     ax.scatter(x[:, 0][:-class_num], x[:, 1][:-class_num], marker='o', c=point_colors[:-class_num], rasterized=True,
                **plot_params)
 
@@ -391,7 +391,7 @@ def plot(
     if title is not None:
         ax.set_title(title)
 
-    plot_params = {"alpha": kwargs.get("alpha", 0.6), "s": kwargs.get("s", 1)}
+    plot_params = {"alpha": kwargs.get("alpha", 0.6), "s": kwargs.get("s", 1), "marker":kwargs.get("marker", 'o')}
 
     # Create main plot
     if label_order is not None:
@@ -450,7 +450,7 @@ def plot(
             )
             for yi in classes
         ]
-        legend_kwargs_ = dict(loc="center left", bbox_to_anchor=(1, 0.5), frameon=False, )
+        legend_kwargs_ = dict(loc="center left", bbox_to_anchor=(1, 0.5), frameon=False, fontsize=20)
         if legend_kwargs is not None:
             legend_kwargs_.update(legend_kwargs)
         ax.legend(handles=legend_handles, **legend_kwargs_)
@@ -479,8 +479,8 @@ def plot_with_two_domains(
     if title is not None:
         ax.set_title(title)
 
-    plot_params_t = {"alpha": kwargs.get("alpha", 0.3), "s": kwargs.get("s", 1)}
-    plot_params_s = {"alpha": 1, "s": kwargs.get("s", 1)}
+    plot_params_t = {"alpha": kwargs.get("alpha", 0.2), "s": kwargs.get("s", 40)}
+    plot_params_s = {"alpha": 1, "s": kwargs.get("s", 40)}
 
     # Create main plot
     if label_order is not None:
@@ -495,10 +495,10 @@ def plot_with_two_domains(
     point_colors = list(map(colors.get, y))
 
     source_size = kwargs.get('source_size', 0)
-    ax.scatter(x[:, 0][:-source_size], x[:, 1][:-source_size], marker='o', c=point_colors[:-source_size],
-               rasterized=True, **plot_params_t)
-    ax.scatter(x[:, 0][-source_size:], x[:, 1][-source_size:], marker='+', c=point_colors[-source_size:],
+    ax.scatter(x[:, 0][:-source_size], x[:, 1][:-source_size], marker='*', c=point_colors[:-source_size],
                rasterized=True, **plot_params_s)
+    ax.scatter(x[:, 0][-source_size:], x[:, 1][-source_size:], marker='o', c=point_colors[-source_size:],
+               rasterized=True, **plot_params_t)
 
     # Plot mediods
     if draw_centers:
@@ -526,7 +526,7 @@ def plot_with_two_domains(
 
     # Hide ticks and axis
     ax.set_xticks([]), ax.set_yticks([]), ax.axis("off")
-
+    print('classes',classes)
     if draw_legend:
         legend_handles = [
             matplotlib.lines.Line2D(
@@ -543,7 +543,7 @@ def plot_with_two_domains(
             )
             for yi in classes
         ]
-        legend_kwargs_ = dict(loc="center left", bbox_to_anchor=(1, 0.5), frameon=False, )
+        legend_kwargs_ = dict(loc="center left", bbox_to_anchor=(0, 0), frameon=False, fontsize=20)
         if legend_kwargs is not None:
             legend_kwargs_.update(legend_kwargs)
         ax.legend(handles=legend_handles, **legend_kwargs_)
