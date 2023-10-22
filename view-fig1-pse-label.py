@@ -17,7 +17,6 @@ torch.manual_seed(SEED)
 torch.cuda.manual_seed_all(SEED)
 np.random.seed(SEED)
 random.seed(SEED)
-torch.backends.cudnn.benchmark = True
 
 parser = argparse.ArgumentParser(description='SHOT')
 parser.add_argument('--dset', type=str, default='VISDA-C')
@@ -58,13 +57,14 @@ print(f'len of dataset:{len(mem_label)}')
 n_per_class = 100
 n_class = 5
 class_order = [0, 2, 4, 6, 8, 10]
+# class_order = [0, 1, 2, 3, 4, 5]
 n_samples = 2000
-
+start = 2000
 all_fea = all_fea.cpu().numpy()
 all_label = all_label.cpu().numpy()
-x = all_fea[:n_samples]
-y = all_label[:n_samples]
-mem_label = mem_label[:n_samples]
+x = all_fea[start:start+n_samples]
+y = all_label[start:start+n_samples]
+mem_label = mem_label[start:start+n_samples]
 
 class_mask = np.isin(y, class_order)
 x = x[class_mask]
@@ -85,11 +85,11 @@ y_cat = np.concatenate([y_clean, y_noise], axis=0).astype(np.int)
 n_clean = np.sum(true_pse_label)
 y_cat = tuple(y_cat)
 print ('start tsne...')
-tsne = TSNE(n_components=2, random_state=0, perplexity=10, n_iter=1000, learning_rate=100)
+tsne = TSNE(n_components=2, random_state=0, perplexity=30, n_iter=1000)
 transformed_data = tsne.fit_transform(x_cat)
 print ('tsne done...')
 
 # spltit
-plot_with_two_domains(transformed_data,y_cat,colors=MOUSE_10X_COLORS, source_size=n_clean,img_dir='res/pic/re-source')
+plot_with_two_domains(transformed_data,y_cat,colors=MOUSE_10X_COLORS, source_size=n_clean,img_dir='res/pic/re-source', draw_legend=False)
 plot(transformed_data[:n_clean],y_clean,colors=MOUSE_10X_COLORS, alpha=1, s=40, img_dir='res/pic/re-source-clean', draw_legend=False, marker='*' )
 plot(transformed_data[n_clean:],y_noise,colors=MOUSE_10X_COLORS, alpha=0.2, s=40, img_dir='res/pic/re-source-noisy', draw_legend=False,marker='o' )

@@ -543,7 +543,7 @@ def plot_with_two_domains(
             )
             for yi in classes
         ]
-        legend_kwargs_ = dict(loc="center left", bbox_to_anchor=(0, 0), frameon=False, fontsize=20)
+        legend_kwargs_ = dict(loc="center left", bbox_to_anchor=(0.6, 1), fontsize=20)
         if legend_kwargs is not None:
             legend_kwargs_.update(legend_kwargs)
         ax.legend(handles=legend_handles, **legend_kwargs_)
