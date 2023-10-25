@@ -1,10 +1,13 @@
-res/ckps
-res/res
+res/
+data/
 
-
+loaders/data_load/__pycache__/
 utils/__pycache__/
 model/__pycache__/
 loaders/__pycache__/
 trainer/__pycache__/
 
 response.md
+digits_acc.md
+
+SHOT-master

@@ -368,7 +368,6 @@ if __name__ == "__main__":
         names = ['train', 'validation']
         args.class_num = 12
         args.append_root = folder + 'VISDA-C/'
-
     if args.dset == 'office-caltech':
         names = ['amazon', 'caltech', 'dslr', 'webcam']
         args.class_num = 10

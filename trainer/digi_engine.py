@@ -15,26 +15,189 @@ from utils.adjust_par import op_copy, cosine_warmup
 from utils.tools import print_args, image_train
 from utils import loss as Loss
 from utils.utils_noise import pair_selection_v1
+from torchvision import transforms
+from loaders.data_load import mnist, svhn, usps
+from utils.tools import GaussianBlur
+
 from torch.cuda.amp import autocast
 
-class Upa(object):
-    def __init__(self, args):
-        super(Upa, self).__init__()
+def mocov2(resize_size=256,crop_size=224,alexnet=False,channel=3):
+    if channel==3:
+        normalize = transforms.Normalize(mean=[0.5, 0.5, 0.5],
+                                        std=[0.5, 0.5, 0.5])
+        augmentation = transforms.Compose([
+            transforms.Resize((resize_size, resize_size)),
+            transforms.Lambda(lambda x: x.convert("RGB")),
+            transforms.RandomResizedCrop(crop_size, scale=(0.8, 1.)),
+            transforms.RandomApply([
+                transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)  # not strengthened
+            ], p=0.8),
+            transforms.RandomGrayscale(p=0.2),
+            transforms.RandomApply([GaussianBlur([.1, 2.])], p=0.5),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            normalize
+        ])
+       
+    elif channel==1:
+        normalize = transforms.Normalize(mean=[0.5],std= [0.5])
+        augmentation = transforms.Compose([
+            transforms.Resize((resize_size, resize_size)),
+            transforms.RandomResizedCrop(crop_size, scale=(0.8, 1.)),
+            transforms.RandomApply([
+                transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)  # not strengthened
+            ], p=0.8),
+            transforms.RandomGrayscale(p=0.2),
+            transforms.RandomApply([GaussianBlur([.1, 2.])], p=0.5),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            normalize
+        ])
+        
+    return augmentation
 
-        self.encoder = network.encoder(args)
-        self.encoder.load_model()
-        self.netC = network.feat_classifier(type=args.layer, class_num=args.class_num,
-                                            bottleneck_dim=args.bottleneck).cuda()
-        modelpath = os.path.join(args.output_dir_src, 'source_C.pt')
-        self.netC.load_state_dict(torch.load(modelpath))
+def digit_load(args, return_ttransform=False): 
+    train_bs = args.batch_size
+    if args.dset == 's2m':
+        train_source = svhn.SVHN('./data/svhn/', split='train', download=True,
+                transform=transforms.Compose([
+                    transforms.Resize(32),
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+                ]))
+        test_source = svhn.SVHN('./data/svhn/', split='test', download=True,
+                transform=transforms.Compose([
+                    transforms.Resize(32),
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+                ]))  
+        train_target = mnist.MNIST_idx('./data/mnist/', train=True, download=True,
+                transform=transforms.Compose([
+                    transforms.Resize(32),
+                    transforms.Lambda(lambda x: x.convert("RGB")),
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+                ]))      
+        test_target = mnist.MNIST('./data/mnist/', train=False, download=True,
+                transform=transforms.Compose([
+                    transforms.Resize(32),
+                    transforms.Lambda(lambda x: x.convert("RGB")),
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+                ]))
+        tt_transform =transforms.Compose([
+                    transforms.Resize(32),
+                    transforms.Lambda(lambda x: x.convert("RGB")),
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+                ])
+        two_target = mnist.MNIST_idx('./data/mnist/', train=True, download=True,
+                transform=tt_transform,
+                transform2=mocov2(resize_size=32, crop_size=32, channel=3))
+    elif args.dset == 'u2m':
+        train_source = usps.USPS('./data/usps/', train=True, download=True,
+                transform=transforms.Compose([
+                    transforms.RandomCrop(28, padding=4),
+                    transforms.RandomRotation(10),
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.5,), (0.5,))
+                ]))
+        test_source = usps.USPS('./data/usps/', train=False, download=True,
+                transform=transforms.Compose([
+                    transforms.RandomCrop(28, padding=4),
+                    transforms.RandomRotation(10),
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.5,), (0.5,))
+                ]))    
+        train_target = mnist.MNIST_idx('./data/mnist/', train=True, download=True,
+                transform=transforms.Compose([
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.5,), (0.5,))
+                ]))    
+        test_target = mnist.MNIST('./data/mnist/', train=False, download=True,
+                transform=transforms.Compose([
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.5,), (0.5,))
+                ]))
+        tt_transform =transforms.Compose([
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.5,), (0.5,))
+                ])
+        two_target = mnist.MNIST_idx('./data/mnist/', train=True, download=True,
+                transform=tt_transform,
+                transform2=mocov2(resize_size=16, crop_size=28, channel=1))
+    elif args.dset == 'm2u': # mnist: 28x28
+        train_source = mnist.MNIST('./data/mnist/', train=True, download=True,
+                transform=transforms.Compose([
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.5,), (0.5,))
+                ]))
+        test_source = mnist.MNIST('./data/mnist/', train=False, download=True,
+                transform=transforms.Compose([
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.5,), (0.5,))
+                ]))
 
-        self.encoder = self.encoder.cuda()
-        self.netC = self.netC.cuda()
-        self.loader, self.dsets = data_load(args)
-        self.max_iters = len(self.loader['two_train']) * args.max_epoch
-        self.scaler = torch.cuda.amp.GradScaler()
+        train_target = usps.USPS_idx('./data/usps/', train=True, download=True,
+                transform=transforms.Compose([
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.5,), (0.5,))
+                ]))
+        test_target = usps.USPS('./data/usps/', train=False, download=True,
+                transform=transforms.Compose([
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.5,), (0.5,))
+                ]))
+        tt_transform = transforms.Compose([
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.5,), (0.5,))
+                ])
+        two_target = usps.USPS_idx('./data/usps/', train=True, download=True,
+                transform=tt_transform,
+                transform2=mocov2(resize_size=28, crop_size=28, channel=1))
+    dset_loaders = {}
+    dset_loaders["source_tr"] = DataLoader(train_source, batch_size=train_bs, shuffle=True, 
+        num_workers=args.worker, drop_last=False)
+    dset_loaders["source_te"] = DataLoader(test_source, batch_size=train_bs*2, shuffle=True, 
+        num_workers=args.worker, drop_last=False)
+    dset_loaders["target"] = DataLoader(train_target, batch_size=train_bs, shuffle=True, 
+        num_workers=args.worker, drop_last=False)
+    dset_loaders["target_te"] = DataLoader(train_target, batch_size=train_bs, shuffle=False, 
+        num_workers=args.worker, drop_last=False)
+    dset_loaders["test"] = DataLoader(test_target, batch_size=train_bs*2, shuffle=False, 
+        num_workers=args.worker, drop_last=False)
+    dset_loaders["two_train"] = DataLoader(two_target, batch_size=train_bs, shuffle=True,
+        num_workers=args.worker, drop_last=False)
+    if not return_ttransform:
+        return dset_loaders
+    else:
+        return dset_loaders, tt_transform
+
+class dig_Upa(object):
+    def __init__(self, args, netB, netC, netF):
+        super().__init__()
         self.args = args
-        self.ttransforms = image_train()
+        self.netF = netF
+        self.netB = netB
+        self.encoder = nn.Sequential(self.netF, self.netB).cuda()
+        self.netC = netC.cuda()
+        self.loader, self.ttransforms = digit_load(args, return_ttransform=True)
+        self.max_iters = args.max_epoch * len(self.loader["target"])
+        self.scaler = torch.cuda.amp.GradScaler()
+        param_group = []
+        for k, v in self.netF.named_parameters():
+            param_group += [{'params': v, 'lr': args.lr}]
+        for k, v in self.netB.named_parameters():
+            param_group += [{'params': v, 'lr': args.lr}]
+        for k, v in self.netC.named_parameters():
+            v.requires_grad = False
+        self.optimizer = optim.SGD(param_group, momentum=0.9, weight_decay=1e-3, nesterov=True)
+        self.optimizer = op_copy(self.optimizer)
+
+    def start_train(self):
+        acc_final = self.forward()
+        return acc_final
+
 
     def train_uns(self, epoch, adjust_learning_rate):
         for batchidx, (inputs, _, _, tar_idx) in enumerate(self.loader['two_train']):
@@ -180,27 +343,6 @@ class Upa(object):
         loss = ((maskSup[:bsz].sum(1)) > 0) * (loss.view(bsz))  # 得是maskSup可以的
         return loss.mean()
 
-    def start_train(self):
-        param_group = []
-        for k, v in self.encoder.netF.named_parameters():
-            if self.args.lr_decay1 > 0:
-                if v.requires_grad:
-                    param_group += [{'params': v, 'lr': self.args.lr * self.args.lr_decay1}]
-            else:
-                v.requires_grad = False
-        for k, v in self.encoder.netB.named_parameters():
-            if self.args.lr_decay2 > 0:
-                if v.requires_grad:
-                    param_group += [{'params': v, 'lr': self.args.lr * self.args.lr_decay2}]
-            else:
-                v.requires_grad = False
-        for k, v in self.netC.named_parameters():
-            v.requires_grad = False
-
-        optimizer = optim.SGD(param_group, momentum=0.9, weight_decay=1e-3, nesterov=True)
-        self.optimizer = op_copy(optimizer)
-        acc_final = self.forward()
-        return acc_final
 
     def forward(self):
         for epoch in range(1, self.args.max_epoch + 1):
@@ -218,7 +360,7 @@ class Upa(object):
 
             elif epoch > self.args.warmup_epochs:
                 selected_examples, selected_pairs = pair_selection_v1(self.args.k_val,
-                                                                   self.loader['test'],
+                                                                   self.loader['target_te'],
                                                                    mem_label, self.args.class_num,
                                                                    self.args.cos_t,
                                                                    self.args.knn_times,
@@ -236,8 +378,15 @@ class Upa(object):
                 # use the selected pseudo-labels to build a dataloader train_sel_loader to supervise training
                 self.encoder.train()
                 self.netC.train()
-                txt_tar = open(self.args.t_dset_path).readlines()
-                pseudo_dataset = Pseudo_dataset(txt_tar, mem_label.cpu().numpy(), transform=self.ttransforms)
+                # txt_tar = open(self.args.t_dset_path).readlines()
+                if self.args.dset == 's2m' or self.args.dset== 'u2m':
+                    pseudo_dataset = mnist.MNIST_idx('./data/mnist/', train=True, download=True,
+                                    transform=self.ttransforms, mem_label=mem_label.cpu())
+                elif self.args.dset == 'm2u':
+                    pseudo_dataset = usps.USPS_idx('./data/usps/', train=True, download=True,
+                                    transform=self.ttransforms, mem_label=mem_label.cpu())
+                # pseudo_dataset = Pseudo_dataset(txt_tar, mem_label.cpu().numpy(), transform=self.ttransforms)
+                
                 train_sel_loader = DataLoader(pseudo_dataset, batch_size=self.args.batch_size, num_workers=self.args.worker,
                                               pin_memory=True,
                                               sampler=torch.utils.data.WeightedRandomSampler(selected_examples,
@@ -268,9 +417,9 @@ class Upa(object):
                 os.system('mkdir -p ' + self.args.save_dir)
             if not osp.exists(self.args.save_dir):
                 os.mkdir(self.args.save_dir)
-            torch.save(self.encoder.netF.state_dict(),
+            torch.save(self.netF.state_dict(),
                        osp.join(self.args.save_dir, "target_F.pt"))
-            torch.save(self.encoder.netB.state_dict(),
+            torch.save(self.netB.state_dict(),
                        osp.join(self.args.save_dir, "target_B.pt"))
             torch.save(self.netC.state_dict(),
                        osp.join(self.args.save_dir, "target_C.pt"))
@@ -323,8 +472,8 @@ class Upa(object):
     def obtain_label(self, return_dist=False):
         start_test = True
         with torch.no_grad():
-            iter_train = iter(self.loader['test'])
-            for _ in range(len(self.loader['test'])):
+            iter_train = iter(self.loader['target_te'])
+            for _ in range(len(self.loader['target_te'])):
                 data = iter_train.next()
                 inputs = data[0]
                 labels = data[1]
