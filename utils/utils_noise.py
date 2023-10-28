@@ -4,7 +4,7 @@ import warnings
 from scipy.spatial.distance import cdist
 import torch.nn as nn
 import numpy as np
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 from utils import loss as Loss
 warnings.filterwarnings('ignore')
 
@@ -426,15 +426,15 @@ def pair_selection(k_val, testloader, labels, class_num, cos_t, alpha, trainFeat
                 0).expand(total_selected_num, total_selected_num)] = selected_pairs.type(torch.uint8)
         final_selected_pairs = final_selected_pairs.type(torch.bool)
         # finally pairs that are selected and have same labels are set to true
-    if plot:
-        if two_knn:
-            plt.hist(discrepancy_measure2.cpu().numpy(), color='blue', )
-        else:
-            plt.hist(discrepancy_measure1.cpu().numpy(), color='blue')
-        plt.xlabel('score')
-        plt.ylabel('freq')
-        plt.title('freq/score')
-        plt.savefig(f'./res/confidence/sse_confidence_epoch{epoch}.jpg')
+    # if plot:
+    #     if two_knn:
+    #         plt.hist(discrepancy_measure2.cpu().numpy(), color='blue', )
+    #     else:
+    #         plt.hist(discrepancy_measure1.cpu().numpy(), color='blue')
+    #     plt.xlabel('score')
+    #     plt.ylabel('freq')
+    #     plt.title('freq/score')
+    #     plt.savefig(f'./res/confidence/sse_confidence_epoch{epoch}.jpg')
 
     return selected_examples.cuda(), final_selected_pairs.contiguous()
 
@@ -562,12 +562,12 @@ def pair_selection_v1(k_val, testloader, labels, class_num, cos_t, knn_times, tr
                 0).expand(total_selected_num, total_selected_num)] = selected_pairs.type(torch.uint8)
         final_selected_pairs = final_selected_pairs.type(torch.bool)
         # finally pairs that are selected and have same labels are set to true
-    if plot:
-        plt.hist(discrepancy_measure.cpu().numpy(), color='blue', )
-        plt.xlabel('score')
-        plt.ylabel('freq')
-        plt.title('freq/score')
-        plt.savefig(f'./res/confidence/sse_confidence_epoch{epoch}.jpg')
+    # if plot:
+    #     plt.hist(discrepancy_measure.cpu().numpy(), color='blue', )
+    #     plt.xlabel('score')
+    #     plt.ylabel('freq')
+    #     plt.title('freq/score')
+    #     plt.savefig(f'./res/confidence/sse_confidence_epoch{epoch}.jpg')
 
     return selected_examples.cuda(), final_selected_pairs.contiguous()
 
@@ -1225,15 +1225,15 @@ def pair_selection_01(k_val, testloader, labels, class_num, cos_t, trainFeatures
                 0).expand(total_selected_num, total_selected_num)] = selected_pairs.type(torch.uint8)
         final_selected_pairs = final_selected_pairs.type(torch.bool)
 
-    if plot:
-        if two_knn:
-            plt.hist(discrepancy_measure2.cpu().numpy(), color='blue')
-        else:
-            plt.hist(discrepancy_measure1.cpu().numpy(), color='blue')
-        plt.xlabel('score')
-        plt.ylabel('freq')
-        plt.title('freq/score')
-        plt.savefig(f'./res/confidence/sse_confidence_epoch{epoch}.jpg')
+    # if plot:
+    #     if two_knn:
+    #         plt.hist(discrepancy_measure2.cpu().numpy(), color='blue')
+    #     else:
+    #         plt.hist(discrepancy_measure1.cpu().numpy(), color='blue')
+    #     plt.xlabel('score')
+    #     plt.ylabel('freq')
+    #     plt.title('freq/score')
+    #     plt.savefig(f'./res/confidence/sse_confidence_epoch{epoch}.jpg')
 
     return agreement_measure.cuda(), final_selected_pairs.contiguous()
 
@@ -1336,21 +1336,21 @@ def pair_selection_by_selected(k_val, testloader, labels, class_num, cos_t, trai
     else:
         discrepancy_measure = discrepancy_measure1
 
-    plt.hist(discrepancy_measure.clone().cpu().numpy(), bins=50, color="blue")
-    '''
-    data:必选参数，绘图数据
-    bins:直方图的长条形数目，可选项，默认为10
-    normed:是否将得到的直方图向量归一化，可选项，默认为0，代表不归一化，显示频数。normed=1，表示归一化，显示频率。
-    facecolor:长条形的颜色
-    edgecolor:长条形边框的颜色
-    alpha:透明度
-    '''
-    plt.xlabel("scale")
-    # 显示纵轴标签
-    plt.ylabel("freq")
-    # 显示图标题
-    plt.title("freq/scale")
-    plt.savefig(f'./res/confidence/freq_score_epoch{epoch}.jpg')
+    # plt.hist(discrepancy_measure.clone().cpu().numpy(), bins=50, color="blue")
+    # '''
+    # data:必选参数，绘图数据
+    # bins:直方图的长条形数目，可选项，默认为10
+    # normed:是否将得到的直方图向量归一化，可选项，默认为0，代表不归一化，显示频数。normed=1，表示归一化，显示频率。
+    # facecolor:长条形的颜色
+    # edgecolor:长条形边框的颜色
+    # alpha:透明度
+    # '''
+    # plt.xlabel("scale")
+    # # 显示纵轴标签
+    # plt.ylabel("freq")
+    # # 显示图标题
+    # plt.title("freq/scale")
+    # plt.savefig(f'./res/confidence/freq_score_epoch{epoch}.jpg')
 
     # select examples
     set_index = torch.nonzero(set_onehot).squeeze()
@@ -1469,12 +1469,12 @@ def pair_selection_cluster_correction(k_val, testloader, labels, class_num, trai
                 0).expand(total_selected_num, total_selected_num)] = selected_pairs.type(torch.uint8)
         final_selected_pairs = final_selected_pairs.type(torch.bool)
         # finally pairs that are selected and have same labels are set to true
-    if plot:
-        plt.hist(discrepancy_measure.cpu().numpy(), color='blue')
-        plt.xlabel('score')
-        plt.ylabel('freq')
-        plt.title('freq/score')
-        plt.savefig(f'./res/confidence/sse_confidence_epoch{epoch}.jpg')
+    # if plot:
+    #     plt.hist(discrepancy_measure.cpu().numpy(), color='blue')
+    #     plt.xlabel('score')
+    #     plt.ylabel('freq')
+    #     plt.title('freq/score')
+    #     plt.savefig(f'./res/confidence/sse_confidence_epoch{epoch}.jpg')
 
     return selected_examples.cuda(), final_selected_pairs.contiguous()
 
@@ -1601,11 +1601,11 @@ def pseudo_iterative(k_val, testloader, labels, class_num, cos_t, knn_times, tra
                 0).expand(total_selected_num, total_selected_num)] = selected_pairs.type(torch.uint8)
         final_selected_pairs = final_selected_pairs.type(torch.bool)
         # finally pairs that are selected and have same labels are set to true
-    if plot:
-        plt.hist(discrepancy_measure.cpu().numpy(), color='blue', )
-        plt.xlabel('score')
-        plt.ylabel('freq')
-        plt.title('freq/score')
-        plt.savefig(f'./res/confidence/sse_confidence_epoch{epoch}.jpg')
+    # if plot:
+    #     plt.hist(discrepancy_measure.cpu().numpy(), color='blue', )
+    #     plt.xlabel('score')
+    #     plt.ylabel('freq')
+    #     plt.title('freq/score')
+    #     plt.savefig(f'./res/confidence/sse_confidence_epoch{epoch}.jpg')
 
     return selected_examples.cuda(), final_selected_pairs.contiguous()

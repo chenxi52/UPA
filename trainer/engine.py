@@ -237,7 +237,7 @@ class Upa(object):
                 self.encoder.train()
                 self.netC.train()
                 txt_tar = open(self.args.t_dset_path).readlines()
-                pseudo_dataset = Pseudo_dataset(txt_tar, mem_label.cpu().numpy(), transform=self.ttransforms)
+                pseudo_dataset = Pseudo_dataset(txt_tar, mem_label.cpu().numpy(), transform=self.ttransforms, append_root=self.args.append_root)
                 train_sel_loader = DataLoader(pseudo_dataset, batch_size=self.args.batch_size, num_workers=self.args.worker,
                                               pin_memory=True,
                                               sampler=torch.utils.data.WeightedRandomSampler(selected_examples,

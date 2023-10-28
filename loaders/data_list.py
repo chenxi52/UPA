@@ -67,8 +67,8 @@ class ImageList(Dataset):
 
 
 class ImageList_idx(Dataset):
-    def __init__(self, image_list, labels=None, transform=None, target_transform=None, mode='RGB'):
-        imgs = make_dataset(image_list, labels)
+    def __init__(self, image_list, labels=None, transform=None, target_transform=None, mode='RGB',append_root=None):
+        imgs = make_dataset(image_list, labels, append_root)
         if len(imgs) == 0:
             raise (RuntimeError("Found 0 images in subfolders of: " + root + "\n"
                                                                              "Supported image extensions are: " + ",".join(
@@ -97,8 +97,8 @@ class ImageList_idx(Dataset):
 
 
 class Pseudo_dataset(Dataset):
-    def __init__(self, image_list, mem_labels, transform=None, mode='RGB'):
-        imgs = make_dataset(image_list, None)
+    def __init__(self, image_list, mem_labels, transform=None, mode='RGB', append_root=None):
+        imgs = make_dataset(image_list, None, append_root=append_root)
         if len(imgs) == 0:
             raise (RuntimeError("Found 0 images in subfolders of: " + root + "\n"
                                                                              "Supported image extensions are: " + ",".join(
@@ -160,8 +160,8 @@ class ImageList_twice(Dataset):
 
 
 class Two_ImageList_idx(Dataset):
-    def __init__(self, image_list, labels=None, transform1=None, transform2=None, target_transform=None, mode='RGB'):
-        imgs = make_dataset(image_list, labels)
+    def __init__(self, image_list, labels=None, transform1=None, transform2=None, target_transform=None, mode='RGB', append_root=None):
+        imgs = make_dataset(image_list, labels, append_root)
         if len(imgs) == 0:
             raise (RuntimeError("Found 0 images in subfolders of: " + root + "\n"
                                                                              "Supported image extensions are: " + ",".join(

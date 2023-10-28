@@ -66,7 +66,7 @@ def image_test(resize_size=256, crop_size=224, alexnet=False, norm_val='imagenet
         normalize
     ])
 
-def data_load(args):
+def data_load(args, root=None):
     ## prepare data
     dsets = {}
     dset_loaders = {}
@@ -111,7 +111,6 @@ def data_load(args):
         tr_size = int(0.9 * dsize)
         _, te_txt = torch.utils.data.random_split(txt_src, [tr_size, dsize - tr_size])
         tr_txt = txt_src
-
     dsets["source_tr"] = ImageList(tr_txt, transform=image_train(norm_val=args.norm_val),append_root=args.append_root)
     dset_loaders["source_tr"] = DataLoader(dsets["source_tr"], batch_size=train_bs, shuffle=True,
                                            num_workers=args.worker, drop_last=False)
@@ -336,7 +335,7 @@ if __name__ == "__main__":
     parser.add_argument('--batch_size', type=int, default=64, help="batch_size")
     parser.add_argument('--worker', type=int, default=4, help="number of workers")
     parser.add_argument('--dset', type=str, default='office-home',
-                        choices=['VISDA-C', 'office', 'office-home', 'office-caltech'])
+                        choices=['VISDA-C', 'office', 'office-home', 'office-caltech','domainnet126'])
     parser.add_argument('--lr', type=float, default=1e-2, help="learning rate")
     parser.add_argument('--net', type=str, default='resnet50', help="vgg16, resnet50, resnet101")
     parser.add_argument('--seed', type=int, default=2020, help="random seed")
@@ -371,7 +370,11 @@ if __name__ == "__main__":
     if args.dset == 'office-caltech':
         names = ['amazon', 'caltech', 'dslr', 'webcam']
         args.class_num = 10
-
+    if args.dset == 'domainnet126':
+        # c,i,p,q,r,s
+        names = ['clipart', 'painting', 'real', 'sketch']
+        args.class_num = 126
+        args.append_root = f'{folder}/domainnet126/'
     # os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_id
     SEED = args.seed
     torch.manual_seed(SEED)
