@@ -198,7 +198,7 @@ if __name__ == "__main__":
     parser.add_argument('--lr_decay2', type=float, default=1.0)
     parser.add_argument('--warmup_epochs', type=int, default=0)
     parser.add_argument('--scheduler_warmup_epochs', type=int, default=1)
-
+    parser.add_argument('--folder', type=str, default='../DATASETS/')
     args = parser.parse_args()
 
     if args.dset == 'office-home':
@@ -223,7 +223,7 @@ if __name__ == "__main__":
     np.random.seed(SEED)
     random.seed(SEED)
     torch.backends.cudnn.benchmark = True
-    folder = 'data/datasets/'
+    folder = args.folder
     
     args.t_dset_path = folder + args.dset + '/' + names[args.t][0] + '_list.txt'
     args.test_dset_path = folder + args.dset + '/' + names[args.t][0] + '_list.txt'

@@ -51,10 +51,10 @@ class Upa(object):
                 outputs = self.netC(features)
                 classifier_loss = torch.tensor(0.).cuda()
 
-                softmax_out = nn.Softmax(dim=1)(outputs)  # (N,k)
+                softmax_out = nn.Softmax(dim=1)(outputs) 
                 entropy_loss = torch.mean(Loss.Entropy(softmax_out))
                 im_loss = entropy_loss * self.args.par_ent
-                msoftmax = softmax_out.mean(dim=0)  # 降维（K，）
+                msoftmax = softmax_out.mean(dim=0)  
                 gentropy_loss = torch.sum(-msoftmax * torch.log(msoftmax + self.args.epsilon))
                 im_loss -= gentropy_loss * self.args.par_ent
                 classifier_loss += im_loss
@@ -68,7 +68,6 @@ class Upa(object):
 
     def train_su_cl(self, epoch, trainloader, trainSelloader, mem_label, selected_pairs, adjust_learning_rate):
         if trainSelloader:
-            # 这些是选出来的clean pseudo-labeled samples
             train_sel_iter = iter(trainSelloader)
 
         for batchidx, (inputs, m_inputs, _, index) in enumerate(trainloader):
@@ -91,12 +90,9 @@ class Upa(object):
                     k = F.normalize(k, dim=-1)
 
                     embeds_batch = torch.cat([q, k], dim=0)
-                    pairwise_comp_batch = torch.matmul(embeds_batch, embeds_batch.t())  # 2N*2N
-                    maskSup_batch, maskUnsup_batch = self.mask_estimation(selected_pairs, index, bsz)  # masksup_batch: 2N*2N
+                    pairwise_comp_batch = torch.matmul(embeds_batch, embeds_batch.t()) 
+                    maskSup_batch, maskUnsup_batch = self.mask_estimation(selected_pairs, index, bsz) 
                     logits_mask_batch = (torch.ones_like(maskSup_batch) - torch.eye(2 * bsz).cuda())
-                    ## Negatives mask, i.e. all except self-contrast sample
-                    # sel_mask = (maskSup_batch[:bsz].sum(1)) < 1
-                    # print(f'sum of sel_mask for low-confident samples:{sel_mask.sum()}')
 
                     loss_sup = self.args.par_su_cl * self.Supervised_ContrastiveLearning_loss(pairwise_comp_batch,
                                                                                         maskSup_batch, maskUnsup_batch,
@@ -125,10 +121,10 @@ class Upa(object):
                         classifier_loss += cls_loss
 
                 if self.args.par_noisy_ent > 0:
-                    softmax_out = nn.Softmax(dim=1)(outputs)  # (N,k)
+                    softmax_out = nn.Softmax(dim=1)(outputs)  
                     entropy_loss = torch.mean(Loss.Entropy(softmax_out))
                     im_loss = entropy_loss * self.args.par_noisy_ent
-                    msoftmax = softmax_out.mean(dim=0)  # 降维（K，）
+                    msoftmax = softmax_out.mean(dim=0)  
                     gentropy_loss = torch.sum(-msoftmax * torch.log(msoftmax + self.args.epsilon))
                     im_loss -= gentropy_loss * self.args.par_noisy_ent
                     classifier_loss += im_loss
@@ -140,23 +136,20 @@ class Upa(object):
 
 
     def mask_estimation(self, selected_pairs, index, bsz):
-        # 根据selected_Pairs进行mask的生成
         temp_graph = selected_pairs[index][:, index]
         # Create mask without diagonal to avoid augmented view, i.e. this is supervised mask
         maskSup_batch = temp_graph.float().cuda()
-        maskSup_batch[torch.eye(bsz) == 1] = 0  # 去掉样本自身正例对
+        maskSup_batch[torch.eye(bsz) == 1] = 0  
         maskSup_batch = maskSup_batch.repeat(2, 2)
         maskSup_batch[torch.eye(2 * bsz) == 1] = 0  # remove self-contrast case
 
         maskUnsup_batch = torch.eye(bsz, dtype=torch.float32).cuda()
         maskUnsup_batch = maskUnsup_batch.repeat(2, 2)
-        maskUnsup_batch[torch.eye(2 * bsz) == 1] = 0  ##remove self-contrast (weak-to-weak, strong-to-strong) case #2B*2B
+        maskUnsup_batch[torch.eye(2 * bsz) == 1] = 0  #remove self-contrast (weak-to-weak, strong-to-strong) case #2B*2B
         return maskSup_batch, maskUnsup_batch
 
 
     def Supervised_ContrastiveLearning_loss(self, pairwise_comp, maskSup, maskUnsup, logits_mask, bsz):
-        # maskUnsup是每个样本的一对正例
-        # pairwise_comp:2N*2N,q,k合并
         logits = torch.div(pairwise_comp, self.args.su_cl_t)
         exp_logits = torch.exp(logits) * logits_mask
 
@@ -225,7 +218,7 @@ class Upa(object):
                                                                    all_fea,
                                                                    balance_class=self.args.balance_class,
                                                                    sel_ratio=self.args.sel_ratio,
-                                                                   epoch=epoch)
+                                                                   )
 
                 # calculate pseudo-label accuracy of selected_examples
                 self.encoder.eval()
@@ -316,7 +309,7 @@ class Upa(object):
             aacc = acc.mean()
             aa = [str(np.round(i, 2)) for i in acc]
             acc = ' '.join(aa)
-            return aacc, acc  # acc是单类的正确率 aacc是acc的均值
+            return aacc, acc  
         else:
             return accuracy * 100
 
@@ -345,35 +338,33 @@ class Upa(object):
 
         accuracy = torch.sum(torch.squeeze(predict).float() == all_label).item() / float(all_label.size()[0])
         if self.args.distance == 'cosine':
-            all_fea = torch.cat([all_fea, torch.ones(all_fea.size(0), 1)], 1)  # N*(f+1),这里加了一列全1的
-            all_fea = (all_fea.t() / torch.norm(all_fea, p=2, dim=1)).t()  # n*(f+1)
+            all_fea = torch.cat([all_fea, torch.ones(all_fea.size(0), 1)], 1) 
+            all_fea = (all_fea.t() / torch.norm(all_fea, p=2, dim=1)).t() 
             all_fea = all_fea.float().cpu().numpy()
 
         K = all_output.size(1)
-        aff = all_output.float().cpu().numpy()  # n*k
-        initc = aff.transpose().dot(all_fea)  # k*n*(n*(f+1))=k*(f+1)
-        initc = initc / (1e-8 + aff.sum(axis=0)[:, None])  # 扩充了一维分母变为k*1----(k*(f+1))/(k*1)=k*(f+1)(即每一行是一类的d维中心）
+        aff = all_output.float().cpu().numpy() 
+        initc = aff.transpose().dot(all_fea)  
+        initc = initc / (1e-8 + aff.sum(axis=0)[:, None])  
         cls_count = np.eye(K)[predict].sum(axis=0)
         labelset = np.where(cls_count > 0)
         labelset = labelset[0]
 
-        dd = cdist(all_fea, initc[labelset], self.args.distance)  # cdist(N*f+1,k*f+1)-->N*k+1
+        dd = cdist(all_fea, initc[labelset], self.args.distance) 
         pred_label = dd.argmin(axis=1)
         pred_label = labelset[pred_label]
 
         for round in range(1):
-            aff = np.eye(K)[pred_label]  # N*K
-            initc = aff.transpose().dot(all_fea)  # K*(f+1)
+            aff = np.eye(K)[pred_label] 
+            initc = aff.transpose().dot(all_fea) 
             initc = initc / (1e-8 + aff.sum(axis=0)[:, None])
             dd = cdist(all_fea, initc[labelset], self.args.distance)
             pred_label = dd.argmin(axis=1)
-            pred_label = labelset[pred_label]  # (N,)
+            pred_label = labelset[pred_label] 
 
-        min_dist = dd.min(axis=1)  # 样本距离自己的聚类中心的距离
+        min_dist = dd.min(axis=1)  
         acc = np.sum(pred_label == all_label.float().numpy()) / len(all_fea)
         log_str = f'Task:{self.args.name}   Accuracy = {accuracy * 100:.2f}% -> {acc * 100:.2f}%'
-        # accuracy:目前的模型预测成功率；
-        # acc：pseudo label和true label相似度
 
         self.args.out_file.write(log_str + '\n')
         self.args.out_file.flush()

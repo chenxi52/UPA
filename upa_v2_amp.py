@@ -1,29 +1,15 @@
 # coding=UTF-8<code>
-# version of cvpr2023
 
 import argparse
 import os
 import os.path as osp
-import torch.nn as nn
-import torch.optim as optim
-from scipy.spatial.distance import cdist
-from sklearn.metrics import confusion_matrix
 import datetime
 import torch
 import numpy as np
 import random
-from model import network
-import torch.nn.functional as F
-from loaders.target_loader import data_load
-from loaders.data_list import Pseudo_dataset
-from torch.utils.data import DataLoader
-from utils.adjust_par import op_copy, cosine_warmup
 from utils.tools import print_args, image_train
 from utils.str2bool import str2bool
-from utils import loss as Loss
-from utils.utils_noise import pair_selection_v1
 import json
-from torch.cuda.amp import autocast
 from trainer.engine import Upa
 
 if __name__ == "__main__":
@@ -48,7 +34,6 @@ if __name__ == "__main__":
     parser.add_argument('--balance_class', type=str2bool, default=True,
                         help='whether to balance class in pair_selection')
     parser.add_argument('--knn_times', type=int, default=2, help='how many times of knn is conducted')
-    # parser.add_argument('--test_sel_acc',type=str2bool,default=False,help='whether to calculate selection accuacy to its real labels')
 
     # weight of losses
     parser.add_argument('--par_cls', type=float, default=0.3)
@@ -82,10 +67,10 @@ if __name__ == "__main__":
     parser.add_argument('--lr_decay2', type=float, default=1.0)
     parser.add_argument('--warmup_epochs', type=int, default=0)
     parser.add_argument('--scheduler_warmup_epochs', type=int, default=1)
-
+    parser.add_argument('--folder', type=str, default='../DATASETS/')
     args = parser.parse_args()
     args.append_root = None
-    folder = '../DATASETS/'
+    folder = args.folder
 
     if args.dset == 'office-home':
         names = ['Art', 'Clipart', 'Product', 'RealWorld']
@@ -104,7 +89,6 @@ if __name__ == "__main__":
         names = ['amazon', 'caltech', 'dslr', 'webcam']
         args.class_num = 10
     if args.dset == 'domainnet126':
-        # c,i,p,q,r,s   rc,rp,pc,cs,sp,rs,pr: 20, 21,10,03,31,23,12
         names = ['clipart', 'painting', 'real', 'sketch']
         args.class_num = 126
         args.append_root = f'{folder}/domainnet126/'

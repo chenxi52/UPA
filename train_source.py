@@ -354,8 +354,9 @@ if __name__ == "__main__":
     parser.add_argument('--power', type=float, default=0.75, help='power for scheduler')
     parser.add_argument('--normalized', default=False, type=str2bool)
     parser.add_argument('--norm_val', type=str, default='imagenet', choices=['imagenet', 'norm'])
+    parser.add_argument('--folder', type=str, default='../DATASETS/')
     args = parser.parse_args()
-    folder = '../DATASETS/'
+    folder = args.folder
     args.append_root = None
     if args.dset == 'office-home':
         names = ['Art', 'Clipart', 'Product', 'RealWorld']

@@ -11,3 +11,12 @@ response.md
 digits_acc.md
 
 SHOT-master
+view*
+datasets/
+
+readfile.py
+uda_digit.py
+
+run_digit.sh
+domain126_acc.md
+run_PL.sh
