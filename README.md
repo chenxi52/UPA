@@ -16,7 +16,7 @@ Environments and Datasets preparation please refer to [SHOT](https://github.com/
 
 2. Soure-free domain adaptation in target domains
 ```sh
-    sh office/office-home/visda/domainnet126.sh
+    sh run_office.sh/run_office-home.sh/run_visda.sh/run_domainnet126.sh
 ```
 
 ## Citation
